@@ -6,6 +6,9 @@ jest.mock('../../../services/api/apiClient', () => ({
 jest.mock('../../../services/auth/tokenStorage', () => ({
   getAuthToken: jest.fn(),
   setAuthToken: jest.fn(),
+}));
+
+jest.mock('../../../services/auth/userStorage', () => ({
   getStoredUser: jest.fn(),
   setStoredUser: jest.fn(),
 }));
@@ -20,7 +23,7 @@ import { renderHook, act, waitFor } from '@testing-library/react-native';
 import { AuthProvider, useAuth } from '../AuthContext';
 import * as apiClient from '../../../services/api/apiClient';
 import * as tokenStorage from '../../../services/auth/tokenStorage';
-import * as analytics from '../../../services/analytics/analytics';
+import * as userStorage from '../../../services/auth/userStorage';
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
   <AuthProvider>{children}</AuthProvider>
@@ -30,7 +33,7 @@ describe('AuthContext', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (tokenStorage.getAuthToken as jest.Mock).mockResolvedValue(null);
-    (tokenStorage.getStoredUser as jest.Mock).mockResolvedValue(null);
+    (userStorage.getStoredUser as jest.Mock).mockResolvedValue(null);
   });
 
   it('should initialize with no user when no token exists', async () => {

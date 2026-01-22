@@ -1,4 +1,4 @@
-import React, { createContext, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '../../services/api/apiClient';
 import { ApiEndpoints } from '../../services/api/endpoints';
 import { getAuthToken, setAuthToken } from '../../services/auth/tokenStorage';
@@ -41,7 +41,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     hydrate();
   }, []);
 
-  const signIn = async (
+  const signIn = useCallback(async (
     email: string,
     password: string,
     options?: { captchaV3Token?: string; skipCaptcha?: boolean }
@@ -81,9 +81,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await setAnalyticsUserProperties({
       is_admin: userData?.is_admin ? 'true' : 'false',
     });
-  };
+  }, []);
 
-  const completeTwoFactor = async (code: string) => {
+  const completeTwoFactor = useCallback(async (code: string) => {
     if (!pendingTwoFactor?.userId) {
       throw new Error('Missing two-factor context');
     }
@@ -111,9 +111,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await setAnalyticsUserProperties({
       is_admin: payload?.is_admin ? 'true' : 'false',
     });
-  };
+  }, [pendingTwoFactor]);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     try {
       await apiRequest(ApiEndpoints.auth.logout, { method: 'POST' });
     } catch {
@@ -124,11 +124,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
     setPendingTwoFactor(null);
     await setAnalyticsUserId(null);
-  };
+  }, []);
 
   const value = useMemo(
     () => ({ user, isLoading, signIn, signOut, pendingTwoFactor, completeTwoFactor }),
-    [user, isLoading, pendingTwoFactor]
+    [user, isLoading, pendingTwoFactor, signIn, signOut, completeTwoFactor]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

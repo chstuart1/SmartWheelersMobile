@@ -27,15 +27,25 @@ jest.mock('../../app/config/env', () => ({
 
 import { apiRequest } from '../apiClient';
 
+// Mock fetch globally for tests
+const mockFetch = jest.fn() as jest.Mock;
+
+// Extend global for Node.js test environment
+declare const global: typeof globalThis & {
+  fetch: jest.Mock;
+};
+
+global.fetch = mockFetch;
+
 describe('apiClient', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    global.fetch = jest.fn();
+    mockFetch.mockClear();
   });
 
   it('should make a successful GET request', async () => {
     const mockResponse = { data: 'test' };
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
+    mockFetch.mockResolvedValueOnce({
       ok: true,
       headers: {
         get: () => 'application/json',
@@ -46,7 +56,7 @@ describe('apiClient', () => {
     const result = await apiRequest('/test');
 
     expect(result).toEqual(mockResponse);
-    expect(global.fetch).toHaveBeenCalledWith(
+    expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('/test'),
       expect.objectContaining({
         method: 'GET',
@@ -59,7 +69,7 @@ describe('apiClient', () => {
 
   it('should handle POST requests with body', async () => {
     const mockResponse = { success: true };
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
+    mockFetch.mockResolvedValueOnce({
       ok: true,
       headers: {
         get: () => 'application/json',
@@ -73,7 +83,7 @@ describe('apiClient', () => {
     });
 
     expect(result).toEqual(mockResponse);
-    expect(global.fetch).toHaveBeenCalledWith(
+    expect(mockFetch).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
         method: 'POST',
@@ -83,7 +93,7 @@ describe('apiClient', () => {
   });
 
   it('should throw error on failed request', async () => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
+    mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 400,
       headers: {

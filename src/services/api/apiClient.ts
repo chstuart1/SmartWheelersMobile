@@ -16,7 +16,7 @@ type ApiRequestOptions = {
 
 const DEFAULT_TIMEOUT_MS = 30000;
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(() => resolve(), ms));
 
 const fetchWithTimeout = async (
   url: string,
@@ -24,7 +24,9 @@ const fetchWithTimeout = async (
   timeoutMs: number
 ) => {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
 
   try {
     const response = await fetch(url, {

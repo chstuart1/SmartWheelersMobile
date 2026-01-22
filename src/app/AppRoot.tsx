@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'react-native';
 import { Screen } from './components/Screen';
@@ -28,7 +28,7 @@ const AppGate = () => {
   if (isLoading) {
     return (
       <Screen>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={loadingStyle.container}>
           <ActivityIndicator color="#FFFFFF" />
         </View>
       </Screen>
@@ -45,5 +45,13 @@ const AppGate = () => {
 
   return <Screen>{user ? <HomeScreen /> : <LoginScreen />}</Screen>;
 };
+
+const loadingStyle = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
 
 export default AppRoot;
