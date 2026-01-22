@@ -18,8 +18,11 @@ const updateNetworkState = (state: { isConnected: boolean }) => {
 };
 
 // Initialize network monitoring if available
-if (NetInfo) {
-  NetInfo.fetch().then(updateNetworkState);
+if (NetInfo && typeof NetInfo.fetch === 'function' && typeof NetInfo.addEventListener === 'function') {
+  NetInfo.fetch().then(updateNetworkState).catch(() => {
+    // If fetch fails, assume connected
+    updateNetworkState({ isConnected: true });
+  });
   NetInfo.addEventListener(updateNetworkState);
 } else {
   // Default to assuming network is available if package is not installed

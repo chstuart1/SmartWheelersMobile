@@ -1,17 +1,17 @@
 // Mock dependencies before imports
-jest.mock('../../app/config/appConfig', () => ({
+jest.mock('../../../app/config/appConfig', () => ({
   getApiBaseUrl: jest.fn(() => 'https://api.example.com'),
 }));
 
-jest.mock('../auth/tokenStorage', () => ({
+jest.mock('../../auth/tokenStorage', () => ({
   getAuthToken: jest.fn(() => Promise.resolve('test-token')),
 }));
 
-jest.mock('../network/networkMonitor', () => ({
+jest.mock('../../network/networkMonitor', () => ({
   isNetworkAvailable: jest.fn(() => true),
 }));
 
-jest.mock('../../app/config/env', () => ({
+jest.mock('../../../app/config/env', () => ({
   AppConfig: {
     features: {
       enableOfflineRetry: true,
