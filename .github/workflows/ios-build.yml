@@ -1,0 +1,130 @@
+name: iOS Build
+
+on:
+  push:
+    branches: [main, master]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  build:
+    name: Build iOS App
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.0'
+          bundler-cache: true
+
+      - name: Install CocoaPods dependencies
+        working-directory: ios
+        run: |
+          gem install cocoapods
+          pod install
+
+      - name: Add GoogleService-Info.plist to Xcode project
+        working-directory: ios
+        run: |
+          # Check if file exists
+          if [ ! -f "SmartWheelsMobile/GoogleService-Info.plist" ]; then
+            echo "Warning: GoogleService-Info.plist not found. Make sure it's committed to the repo."
+            exit 1
+          fi
+          echo "GoogleService-Info.plist found ✓"
+
+      - name: Build iOS Archive
+        working-directory: ios
+        env:
+          DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+        run: |
+          xcodebuild clean \
+            -workspace SmartWheelsMobile.xcworkspace \
+            -scheme SmartWheelsMobile \
+            -configuration Release
+
+          xcodebuild archive \
+            -workspace SmartWheelsMobile.xcworkspace \
+            -scheme SmartWheelsMobile \
+            -configuration Release \
+            -archivePath build/SmartWheelsMobile.xcarchive \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Export IPA (if signing configured)
+        working-directory: ios
+        if: ${{ secrets.IOS_SIGNING_CERTIFICATE_BASE64 != '' }}
+        env:
+          DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+        run: |
+          # Create export options plist
+          cat > ExportOptions.plist << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>teamID</key>
+            <string>${{ secrets.IOS_TEAM_ID }}</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>signingCertificate</key>
+            <string>Apple Distribution</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.smartwheelsmobile</key>
+              <string>${{ secrets.IOS_PROVISIONING_PROFILE_NAME }}</string>
+            </dict>
+          </dict>
+          </plist>
+          EOF
+
+          xcodebuild -exportArchive \
+            -archivePath build/SmartWheelsMobile.xcarchive \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath build/export
+
+      - name: Upload Archive Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-archive
+          path: ios/build/SmartWheelsMobile.xcarchive
+          retention-days: 7
+
+      - name: Upload IPA Artifact (if exists)
+        if: ${{ secrets.IOS_SIGNING_CERTIFICATE_BASE64 != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: ios/build/export/*.ipa
+          retention-days: 7
+
+      - name: Build Summary
+        run: |
+          echo "## iOS Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Archive created successfully" >> $GITHUB_STEP_SUMMARY
+          if [ -f "ios/build/export/*.ipa" ]; then
+            echo "- ✅ IPA exported successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ⚠️ IPA not exported (signing not configured)" >> $GITHUB_STEP_SUMMARY
+          fi

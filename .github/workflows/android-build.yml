@@ -1,0 +1,132 @@
+name: Android Build
+
+on:
+  push:
+    branches: [main, master]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  build:
+    name: Build Android App
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Verify google-services.json
+        working-directory: android/app
+        run: |
+          if [ ! -f "google-services.json" ]; then
+            echo "Error: google-services.json not found"
+            exit 1
+          fi
+          echo "google-services.json found ✓"
+
+      - name: Grant execute permission for gradlew
+        working-directory: android
+        run: chmod +x gradlew
+
+      - name: Build Debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+
+      - name: Build Release APK (unsigned)
+        working-directory: android
+        run: ./gradlew assembleRelease
+
+      - name: Build Release AAB (unsigned)
+        working-directory: android
+        run: ./gradlew bundleRelease
+
+      - name: Sign APK (if keystore configured)
+        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        working-directory: android/app
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+          jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
+            -keystore release.keystore \
+            -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
+            -keypass "${{ secrets.ANDROID_KEY_PASSWORD }}" \
+            ../build/outputs/apk/release/app-release-unsigned.apk \
+            release-key
+          zipalign -v 4 \
+            ../build/outputs/apk/release/app-release-unsigned.apk \
+            app-release-signed.apk
+
+      - name: Sign AAB (if keystore configured)
+        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        working-directory: android/app
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+          jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
+            -keystore release.keystore \
+            -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
+            -keypass "${{ secrets.ANDROID_KEY_PASSWORD }}" \
+            ../build/outputs/bundle/release/app-release.aab \
+            release-key
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 7
+
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release-apk
+          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload Signed APK (if exists)
+        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-signed-apk
+          path: android/app/app-release-signed.apk
+          retention-days: 7
+
+      - name: Upload Release AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 7
+
+      - name: Build Summary
+        run: |
+          echo "## Android Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Debug APK built" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Release APK built" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Release AAB built" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" != "" ]; then
+            echo "- ✅ APK/AAB signed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ⚠️ APK/AAB not signed (keystore not configured)" >> $GITHUB_STEP_SUMMARY
+          fi

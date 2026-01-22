@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "723519760122",
+    "project_id": "smartwheelers-65510",
+    "storage_bucket": "smartwheelers-65510.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:723519760122:android:a14d9a5260b6c6a4644b43",
+        "android_client_info": {
+          "package_name": "com.smartwheelsmobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBuNubDmFZYKjX2R_C3sB9o3HavDXXPqLY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
